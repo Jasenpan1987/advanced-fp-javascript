@@ -128,3 +128,13 @@ var names = people.map(curryedGet("name"));
 ```
 
 Exercise: (http://jsbin.com/diwomicuha/edit?js,console)
+
+creating map with reduce
+
+```js
+function map(fn, list) {
+  return list.reduce((prev, next) => {
+    return [...prev, fn(next)];
+  }, []);
+}
+```
