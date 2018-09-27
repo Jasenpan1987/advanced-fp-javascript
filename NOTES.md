@@ -138,3 +138,60 @@ function map(fn, list) {
   }, []);
 }
 ```
+
+## 1.4 melt function with compose
+
+functions can be "melt" togather aka compose
+
+example of "glue" names:
+
+```js
+on_error(function(error) {
+  log(error.message);
+});
+```
+
+To compose the logging and message extraction, we created a function and a "glue" name called error.
+
+an simplified version of compose
+
+```js
+function compose(f, g) {
+  return function(x) {
+    return f(g(x));
+  };
+}
+
+var transformStr = compose(
+  reverse,
+  toLowercase
+);
+trasformStr("HellO"); // olleh
+```
+
+The sequence of the function arguments is from right to left. The left to right one is called pipe.
+
+## 1.5 point-free
+
+Point-free means arguments free, it's like when you creates a function, you don't have to explicitly say `function(x, y, z)`, the function will figure it out.
+
+This is NOT a point-free function
+
+```js
+on_error(function(error) {
+  log(error.message);
+});
+```
+
+and this is the point-free version of the same function
+
+```js
+on_error(
+  compose(
+    log,
+    get("message")
+  )
+);
+```
+
+Here, you don't have to explicityly say the callback function takes an argument called error.
