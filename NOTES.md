@@ -1,4 +1,4 @@
-# 1. The issues
+# 1. The Silence
 
 - Custom names
 - Looping patterns
@@ -195,3 +195,35 @@ on_error(
 ```
 
 Here, you don't have to explicityly say the callback function takes an argument called error.
+
+# 2. The Voyage
+
+## 2.1 Category theory
+
+When you have `add(1, 1)` you get a 2, and the function `add` has the following properties:
+
+```js
+// associative
+add(1, add(2, 3)) === add(add(1, 2), 3);
+
+// commutative
+add(4, 1) === add(1, 4);
+
+// identity
+add(n, 0) === n;
+
+// distributive
+multiply(2, add(3, 4)) === add(multiply(2, 3), multiply(3, 4));
+```
+
+And also you can make `add` more polymophic to cove the following:
+
+```js
+add("foo", "bar"); // "foobar"
+
+add(2.3, 1.1); // 3.4
+
+add([1, 2, 3], [4, 5]); // [1,2,3,4,5]
+```
+
+When we see the above functions, we always assume that the "super add" function covers the above laws.
