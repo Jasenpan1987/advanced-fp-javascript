@@ -227,3 +227,134 @@ add([1, 2, 3], [4, 5]); // [1,2,3,4,5]
 ```
 
 When we see the above functions, we always assume that the "super add" function covers the above laws.
+
+### 2.1.1 Category theory
+
+```
+compose:: (b -> c) -> (a -> b) -> (a -> c)
+identity:: a -> a
+```
+
+### 2.1.2 Category laws
+
+```js
+// left identity
+compose(
+  identity,
+  f
+) === f;
+
+// right identity
+compose(
+  f,
+  identity
+) === f;
+
+// associativity
+compose(
+  compose(
+    f,
+    g
+  ),
+  h
+) ===
+  compose(
+    f,
+    compose(
+      g,
+      h
+    )
+  );
+```
+
+## 2.2 Objects
+
+1. Container/Wrappers for values
+2. No methods
+3. No nouns
+4. Probably won't be making your own often
+
+```js
+function _Container(val) {
+  this.val = val;
+}
+
+function Container(x) {
+  return new _Container(x);
+}
+
+var container = Container(3); // { val: 3 }
+```
+
+But, we are having a problem:
+
+```js
+capitalize("foo"); // "Foo"
+
+capitalize(Container("foo")); // [object Object]
+```
+
+`capitalize` works on strings, not objects, so we need some strategy to make it work.
+
+### 2.2.1 Map over objects
+
+```js
+function _Container(val) {
+  this.val = val;
+}
+
+_Container.prototype.map = function(func) {
+  return Container(func(this.val));
+};
+
+function Container(x) {
+  return new _Container(x);
+}
+
+var container = Container(3); // { val: 3 }
+```
+
+so now if we `capitalize` the wrapper, we can map over it like this
+
+```js
+container.map(function(s) {
+  return capitalize(s);
+}); // Container("Foo")
+
+// or
+
+container.map(capitalize); // point free
+```
+
+The idea is, don't think is as an object, think it like a wrapper or container.
+
+Map is not always like map in arrays, iterate every value inside the array and apply the map function on it, it just the implementation of map on array. Every container can its own map implementation. But the basic idea is, when you map a function, its like go inside the container, and apply the map function on its value or values.
+
+The value of the container should be everything, not just string or number, and also, map is chainable.
+
+```js
+Container([1, 2, 3])
+  .map(reverse)
+  .map(first); // 3
+
+Container("foo")
+  .map(length)
+  .map(add(1)); // 4
+```
+
+This kind of Container which has a map function on it is also called **functor**
+
+And we can also have a curryed map function on its own:
+
+```js
+var map = _.curry(function(f, container) {
+  return container.map(f);
+});
+
+Container(3).map(add(1)); // 4
+
+var mapAdd1 = map(add(1));
+mapAdd1(Container(3)); // 4
+```
+
+By using this more generic map, we don't have to get the actual container, we can just create a mapper without the container.
