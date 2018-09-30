@@ -446,3 +446,42 @@ yearOlder({ name: "Foo" }); // Left("cannot get age")
 So here, `Right` works like normal containers, it has map on it which grabs the value and do some operations and put the result inside the wrapper again. And `Left` work like `Maybe` with a `null` inside, when the map gets called, it doesn't do anything.
 
 ## 2.5 IO
+
+- A lazy computation builder
+- Typically used to contain side effects
+- You must run IO to perform the operation
+- Map appends the function to a list of things to run with the effectful value
+
+```js
+var email_io = IO(function() {
+  return document.querySelector("#email").innerText;
+});
+
+var msg_io = map(concat("Welcome "), email_io);
+
+runIO(msg_io); // Welcome foo@bar.com
+```
+
+IO is similar to promise, it takes instructions like then do this, then do that..., the difference is IO need you to call runIO to kick start everything.
+
+```js
+function getStorageIO(key) {
+  return IO(function() {
+    return localStorage.get(key);
+  });
+}
+
+var getBgColor = compose(
+  get("backgroundColor"),
+  JSON.parse
+);
+
+var bgPref = compose(
+  map(getBgColor),
+  getStorageIO("userPreferences")
+);
+
+var app = bgPref(); // IO
+
+runIO(app); // #efefef
+```
