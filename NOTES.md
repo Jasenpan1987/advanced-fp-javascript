@@ -766,3 +766,17 @@ var uploadFromFile = compose(
 
 uploadFromFile("/tmp/hello.csv").fork(logErr, alert("Success"));
 ```
+
+When ever we see `mjoin, map`, this can be replaced by a `chain`
+
+# 3. Demo
+
+## 3.1 Libraries
+
+- CrossEye / ramda
+- baconjs / bacon.js
+- fantasyland / fantasy-io
+- DrBoolean / pointfree-fantasy
+- folktale / data.either
+
+https://github.com/begriffs/immutube
