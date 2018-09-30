@@ -1,3 +1,5 @@
+// http://jsbin.com/qomulasowo/1/edit?html,js,console
+
 console.clear();
 var _ = R;
 var P = PointFree;

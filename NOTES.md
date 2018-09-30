@@ -485,3 +485,284 @@ var app = bgPref(); // IO
 
 runIO(app); // #efefef
 ```
+
+## 2.6 Other functors
+
+### 2.6.1 Event streams
+
+- An infinite list of results
+- Dual of array
+- Its map is sometimes lazy
+- Calls the map function each time an event happens
+
+```js
+var id_stream = map(
+  function(e) {
+    return "#" + e.id;
+  },
+  Bacon.fromEventTarget(document),
+  "click"
+);
+
+id_stream.onValue(function(id) {
+  console.log("You clicked " + id);
+});
+```
+
+Everytime we clicked on the document, it returns a stream of string, and its lazy, means nothing happen if we don't click on any element on the document.
+
+```js
+var id_stream = map(
+  function(e) {
+    return "#" + e.id;
+  },
+  Bacon.fromEventTarget(document),
+  "click"
+);
+
+var elem_strem = map(document.querySelector, id_stream);
+
+elem_strem.onValue(function(el) {
+  console.log("Inner HTML is " + el.innerHTML);
+});
+```
+
+Here, we mapped id_stream again to get the element in stream.
+
+### 2.6.2 Future
+
+- Has an eventual value
+- Similar to promise, but lazy
+- You must `fork` it to kick it off
+- It takes a function as its value
+- Calls the function with its result once it's there
+
+```js
+var createHTML = function(post) {
+  return `<div>${post.title}</div>`;
+};
+
+var futurePost = map(createHTML, http.get("/posts/2"));
+
+futurePost.fork(
+  function(err) {
+    console.error(err);
+  },
+  function(postHtml) {
+    $("#container").html(postHtml);
+  }
+);
+```
+
+One more example
+
+```js
+var lineCount = compose(
+  length,
+  split(/\n/)
+);
+
+var fileLineCount = compose(
+  map(lineCount),
+  readFile
+);
+
+fileLineCount.fork(log, log);
+```
+
+## 2.7 functor laws and properties
+
+```js
+// Identity
+map(identity) == identity;
+
+// composition
+compose(
+  map(f),
+  map(g)
+) ==
+  map(
+    compose(
+      f,
+      g
+    )
+  );
+```
+
+## 2.8 Monad
+
+### 2.8.1 Pointed functor
+
+```
+of:: a -> F a
+```
+
+If a functor has both map and of function, it's called a "Pointed functor". The of here means put the stuff into the functor which can be any functor.
+
+```js
+Container.of(split); // Container(split)
+
+Future.of(match(/dubstep/)); // Future(match(/dubstep/))
+
+Maybe.of(reverse); // Maybe(reverse)
+
+EventStream.of(replace(/foo/, "bar")); // EventStream(replace(/foo/, bar))
+```
+
+Why we need to put `split` into the `of` function rather than just put it into the Container directly (just like in the comments)? Because the Container doesn't expected a function, it expect a value.
+
+### 2.8.2 Monad
+
+```
+mjoin:: M M a -> M a
+chain:: (a -> M b) -> M a -> M b
+
+Pointed functor + mjoin | chain == Monad
+```
+
+- mjoin takes a container of a container of something into a container of something
+- A pointed functor with mjoin and / or chain becomes a Monad
+
+```js
+mjoin(Container(Container(2))); // Container(2)
+```
+
+Example
+
+```js
+var getTrackingId = compose(
+  Maybe,
+  get("trackingId")
+);
+
+var findOrder = compose(
+  Maybe,
+  Api.findOrder
+);
+
+var getOrderTracking = compose(
+  map(getTrackingId),
+  findOrder
+);
+
+var renderPage = compose(
+  map(map(renderTemplate)),
+  getOrderTracking
+);
+
+renderPage(35); // Maybe(Maybe(HTML))
+```
+
+This is very bad, because you have to map serveral times to work with the data inside a Maybe of a Maybe of something...
+
+To simplify this, we can do
+
+```js
+var getTrackingId = compose(
+  Maybe,
+  get("trackingId")
+);
+
+var findOrder = compose(
+  Maybe,
+  Api.findOrder
+);
+
+var getOrderTracking = compose(
+  mjoin,
+  map(getTrackingId),
+  findOrder
+);
+
+var renderPage = compose(
+  map(renderTemplate),
+  getOrderTracking
+);
+
+renderPage(35); // Maybe(Maybe(HTML))
+```
+
+See the mjoin, it just flatten the Maybe of Maybe to Maybe, just like `[[1,2], [3,4]]` to become `[1,2,3,4]`. So when you nested with functors, just do mjoin, it will flatten it.
+
+Example 2
+
+```js
+var setSearchInput = function(x) {
+  return $("#input").val(x);
+}.toIO();
+
+var getSearchTerm = function() {
+  return getParam("term", location.search);
+}.toIO();
+
+var initSearchForm = compose(
+  map(setSearchInput),
+  getSearchTerm
+);
+
+initSearchForm(); // IO(IO(DOM))
+
+map(runIO, initSearchForm);
+```
+
+can be simplified to
+
+```js
+var setSearchInput = function(x) {
+  return $("#input").val(x);
+}.toIO();
+
+var getSearchTerm = function() {
+  return getParam("term", location.search);
+}.toIO();
+
+var initSearchForm = compose(
+  mjoin, // <- IO(something)
+  map(setSearchInput), // <- IO(IO(something))
+  getSearchTerm // <- IO(something)
+);
+
+initSearchForm(); // IO(DOM)
+
+runIO(initSearchForm()); // so we can directly run it
+```
+
+Example 3
+
+```js
+var sendToServer = httpGet("/upload"); // Future(x)
+
+// var uploadFromFile = compose(map(sendToServer), readFile) // Future(Future(x))
+
+var uploadFromFile = compose(
+  mjoin,
+  map(sendToServer),
+  readFile
+); // Future(x)
+
+uploadFromFile("/tmp/hello.csv").fork(logErr, alert("Success"));
+```
+
+For chain (aka flatMap), you can think it like this
+
+```js
+var chain = function(fn) {
+  return compose(
+    mjoin,
+    map(fn)
+  );
+};
+```
+
+So the Example 3 can be written like this
+
+```js
+var sendToServer = httpGet("/upload");
+
+var uploadFromFile = compose(
+  chain(sendToServer),
+  readFile
+);
+
+uploadFromFile("/tmp/hello.csv").fork(logErr, alert("Success"));
+```
