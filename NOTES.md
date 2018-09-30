@@ -358,3 +358,91 @@ mapAdd1(Container(3)); // 4
 ```
 
 By using this more generic map, we don't have to get the actual container, we can just create a mapper without the container.
+
+## 2.3 Maybe functor
+
+```js
+var getElem = document.querySelector;
+var getNameParts = compose(
+  split(" "),
+  get("value"),
+  getElem
+);
+
+var getFullName = getNameParts("#full_name"); // ["John", "Doe"]
+```
+
+But what if it doesn't find the `full_name`? The `getElem` will return `null`, `get("value")` on `null` will throw exceptions, and the entire stuff blows out.
+
+Here is an implementation of the Maybe container
+
+```js
+function _Maybe(val) {
+  this.val = val;
+}
+
+_Maybe.prototype.map = function(func) {
+  return this.val ? Maybe(func(this.val)) : Maybe(null);
+};
+
+var Maybe = function(val) {
+  return new _Maybe(val);
+};
+```
+
+To use the maybe functor, we just do the exactly the same way as we use teh Container
+
+```js
+var firstMatch = compose(
+  first,
+  match(/cat/g)
+);
+
+firstMatch("dogsup"); // this will throw an error says it can't do first on null
+
+var maybeFirstMatch = compose(
+  map(first),
+  Maybe,
+  match(/cat/g)
+);
+
+maybeFirstMatch("dogsup"); // Maybe(null)
+```
+
+What happened on the `maybeFirstMatch` side is: it trys to find `cat` in string "dogsup", and it failed and returns `null`, then the `null` value will passed into the `Maybe` functor, then the `Maybe` functor is passed to `map(first)` so it calls the `map` on `Maybe`, and returns back a `Maybe(null)`.
+
+In short, if there is a pipeline come from `compose`, and if there might be some function which could produce `null`, put the `Maybe` in front of it, and the `map` can processes natrually.
+
+## 2.4 Either
+
+- It's the functor typically for pure error handling
+- Work like Maybe, but with error message embedded
+- Has two sub class Left / Right
+- Maps the function over Right, ignore the Left
+
+```js
+map(x => x + 1, Right(2)); // Right(3)
+
+map(x => x + 1, Left("some errors")); // Left(some errors)
+```
+
+Here is another example
+
+```js
+var determineAge = function(user) {
+  return user.age ? Right(user.age) : Left("cannot get age");
+};
+
+var yearOlder = compose(
+  map(add(1)),
+  determineAge
+);
+
+yearOlder({ age: 22 }); // Right(23)
+
+yearOlder({ name: "Foo" }); // Left("cannot get age")
+```
+
+So here, `Right` works like normal containers, it has map on it which grabs the value and do some operations and put the result inside the wrapper again. And `Left` work like `Maybe` with a `null` inside, when the map gets called, it doesn't do anything.
+
+## 2.5 IO
